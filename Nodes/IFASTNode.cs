@@ -1,4 +1,5 @@
-﻿using FractalAST.Visitors;
+﻿using FractalAST.FASTBuilders;
+using FractalAST.Visitors;
 
 namespace FractalAST.Nodes
 {
@@ -15,6 +16,7 @@ namespace FractalAST.Nodes
 
         public bool IsDeleted { get; }
 
+        public BaseToken Token { get; set; }
 
         public FASTNode? Parent { get; set; }
 
@@ -65,6 +67,7 @@ namespace FractalAST.Nodes
 
         public long Evaluate();
 
+        IEnumerable<BaseToken> GetAllTokens();
     }
 }
 

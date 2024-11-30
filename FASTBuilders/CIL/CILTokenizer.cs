@@ -5,6 +5,8 @@ namespace FractalAST.FASTBuilders.CIL
     public class CILTokenizer
     {
         private IList<CilInstruction> _instructions;
+        public List<CilInstruction> UnusedInstructions { get; } = new List<CilInstruction>();
+        public List<CilInstruction> UsedInstructions { get; } = new List<CilInstruction>();
 
         public CILTokenizer(IList<CilInstruction> instructions)
         {
@@ -37,17 +39,19 @@ namespace FractalAST.FASTBuilders.CIL
                 CILToken token;
                 if (expType == ExprType.Var || expType == ExprType.Const)
                 {
-                    token = new CILToken(expType, inst.Operand!);
+                    token = new CILToken(expType, inst.Operand!, inst);
                 }
                 else if (expType == ExprType.Unknown)
                 {
+                    UnusedInstructions.Add(inst);
                     continue;
                 }
                 else
                 {
-                    token = new CILToken(expType, inst);
+                    token = new CILToken(expType, inst, inst);
                 }
                 tokens.Add(token);
+                UsedInstructions.Add(inst);
             }
             return new TokenReader<CILToken>(tokens);
         }

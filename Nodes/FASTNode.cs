@@ -1,4 +1,5 @@
-﻿using FractalAST.Visitors;
+﻿using FractalAST.FASTBuilders;
+using FractalAST.Visitors;
 
 namespace FractalAST.Nodes
 {
@@ -25,6 +26,8 @@ namespace FractalAST.Nodes
         public IList<FASTNode> Ancestors => GetAncestors();
 
         public IList<FASTNode> GrandChildren => GetGrandChildren();
+
+        public BaseToken Token { get; set; }
 
         public FASTNode(FASTNode parent = null!)
         {
@@ -162,6 +165,17 @@ namespace FractalAST.Nodes
             cloned.Children = clonedChildren;
 
             return cloned;
+        }
+
+        public IEnumerable<BaseToken> GetAllTokens()
+        {
+            List<BaseToken> tokens = new List<BaseToken>();
+            var nodes = GetGrandChildren();
+            foreach (var n in Children.Concat(nodes))
+            {
+                tokens.Add(n.Token);
+            }
+            return tokens;
         }
 
         public virtual void Accept(IFASTVisitor visitor)

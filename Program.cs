@@ -1,6 +1,8 @@
 ﻿using AsmResolver.DotNet;
+using AsmResolver.PE.DotNet.Cil;
 using FractalAST.FASTBuilders.CIL;
 using FractalAST.FASTBuilders.Expression;
+using FractalAST.Nodes;
 using FractalAST.Visitors;
 using System.Diagnostics;
 
@@ -47,10 +49,9 @@ namespace FractalAST
             method.CilMethodBody!.Instructions.ExpandMacros();
             var instList = method.CilMethodBody!.Instructions.ToList();
 
-            var root = instList.ToAST();
+            var (root, unused, used) = instList.ToAST();
             root.Validate();
 
-            method.CilMethodBody!.Instructions.OptimizeMacros();
 
             var rootEval = root.Evaluate();
 
@@ -58,6 +59,7 @@ namespace FractalAST
             var cloneEval = clone.Evaluate();
             Debug.Assert(rootEval == cloneEval);
             clone.Validate();
+
 
             var vTest = new BasicLinearMBAVisitor();
             clone.Accept(vTest);
@@ -68,7 +70,29 @@ namespace FractalAST
             Debug.Assert(cloneEval == obfEval);
             clone.Validate();
 
+            ReplaceInstructionsWithObfuscated(method, used, clone);
+
+            mod.Write("Example.dll");
+
             Console.WriteLine(clone);
+        }
+
+        private static void ReplaceInstructionsWithObfuscated(MethodDefinition method, IEnumerable<CilInstruction> used, FASTNode clone)
+        {
+            var export = new CILExportVisitor();
+            clone.Accept(export);
+
+            var newInsts = export.OutputInstructions;
+            foreach (var usedInst in used)
+            {
+                usedInst.ReplaceWithNop();
+            }
+
+            var firstIndexOfNops = method.CilMethodBody!.Instructions.GetIndexByOffset(used.First().Offset);
+            method.CilMethodBody!.Instructions.InsertRange(firstIndexOfNops, newInsts);
+
+            method.CilMethodBody!.Instructions.CalculateOffsets();
+            method.CilMethodBody!.Instructions.OptimizeMacros();
         }
 
         public static int MathTest1(int x, int y, int z)

@@ -6,6 +6,8 @@ namespace FractalAST.FASTBuilders.CIL
        where TToken : BaseToken
     {
         private TokenReader<TToken> _walker;
+        public List<Tuple<IFASTNode, TToken>> UnusedNodesAndTokens { get; } = new List<Tuple<IFASTNode, TToken>>();
+        public List<TToken> UsedTokens { get; } = new List<TToken>();
 
         public CILASTParser(TokenReader<TToken> walker)
         {
@@ -15,7 +17,9 @@ namespace FractalAST.FASTBuilders.CIL
         // Simple postfix notation to AST, Reverse Polish Notation.
         public IFASTNode Parse()
         {
-            var stack = new Stack<IFASTNode>();
+            UnusedNodesAndTokens.Clear();
+
+            var stack = new Stack<Tuple<IFASTNode, TToken>>();
 
             while (_walker.ThereAreMoreTokens)
             {
@@ -26,7 +30,7 @@ namespace FractalAST.FASTBuilders.CIL
                     case ExprType.Const:
                     case ExprType.Var:
                         // Create a ValueNode and push it to the stack
-                        stack.Push(new ValueNode<object>(token.Value));
+                        stack.Push(new Tuple<IFASTNode, TToken>(new ValueNode<object>(token.Value) { Token = token }, token));
                         break;
 
                     case ExprType.PlusOperator:
@@ -60,7 +64,7 @@ namespace FractalAST.FASTBuilders.CIL
                         };
 
                         // Create and push the BinaryOperatorNode
-                        stack.Push(new BinaryOperatorNode(binaryOperatorType, (FASTNode)left, (FASTNode)right));
+                        stack.Push(new Tuple<IFASTNode, TToken>(new BinaryOperatorNode(binaryOperatorType, (FASTNode)left.Item1, (FASTNode)right.Item1) { Token = token }, token));
                         break;
 
                     case ExprType.NotOperator:
@@ -71,7 +75,7 @@ namespace FractalAST.FASTBuilders.CIL
                         var operand = stack.Pop();
                         var unaryOperatorType = token.Type == ExprType.NotOperator ? UnaryOperType.Not : UnaryOperType.Negate;
 
-                        stack.Push(new UnaryOperatorNode(unaryOperatorType, (FASTNode)operand));
+                        stack.Push(new Tuple<IFASTNode, TToken>(new UnaryOperatorNode(unaryOperatorType, (FASTNode)operand.Item1) { Token = token }, token));
                         break;
 
                     default:
@@ -87,22 +91,27 @@ namespace FractalAST.FASTBuilders.CIL
                 IFASTNode node = default!;
                 foreach (var n in stack)
                 {
-                    var c = n.Children.Count + n.GrandChildren.Count;
+                    var c = n.Item1.Children.Count + n.Item1.GrandChildren.Count;
                     if (c > max)
                     {
                         max = c;
-                        node = n;
+                        node = n.Item1;
                     }
                 }
                 if (node == default)
                 {
                     throw new Exception("Invalid expression, no possible node to retrieve.");
                 }
+
+                UnusedNodesAndTokens.AddRange(stack.Where(x => x.Item1 != node));
+                UsedTokens.Add((TToken)node.Token);
+                UsedTokens.AddRange(node.GetAllTokens().Cast<TToken>());
+
                 return node;
             }
             else
             {
-                return stack.Pop();
+                return stack.Pop().Item1;
             }
         }
     }
